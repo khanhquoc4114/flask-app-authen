@@ -1,0 +1,46 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# Environment variables
+.env
+*.env
+
+# Logs
+*.log
+*.out
+*.err
+
+# Byte-compiled / optimized / DLL files
+*.pyc
+*.pyo
+*.pyd
+
+# Docker
+*.pid
+docker-compose.override.yml
+
+# Ignore Docker build cache
+**/.dockerignore
+.docker/
+
+# Ignore IDE configs
+.vscode/
+.idea/
+
+# Test & coverage
+.coverage
+.tox/
+pytest_cache/
+*.cover
+
+# OS-specific files
+.DS_Store
+Thumbs.db

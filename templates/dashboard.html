@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Google OAuth App{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px;">
+    <div class="user-info">
+        <img src="{{ user.picture }}" alt="Avatar" class="user-avatar">
+        <div class="user-name">{{ user.name }}</div>
+        <div class="user-email">{{ user.email }}</div>
+    </div>
+    
+    <div class="dashboard-content">
+        <div class="welcome-text">
+            Chào mừng bạn đến với ứng dụng! 🎉
+        </div>
+        
+        <div class="feature-list">
+            <div class="feature-item">✅ Đăng nhập thành công với Google</div>
+            <div class="feature-item">👤 Thông tin tài khoản đã được xác thực</div>
+            <div class="feature-item">🔒 Phiên đăng nhập an toàn</div>
+            <div class="feature-item">⚡ Sẵn sàng cho các tính năng mới</div>
+        </div>
+        
+        <div style="margin-top: 30px;">
+            <p style="color: #666; font-size: 0.9em; margin-bottom: 20px;">
+                ID người dùng: {{ user.id }}
+            </p>
+        </div>
+    </div>
+    
+    <a href="{{ url_for('logout') }}" class="logout-btn">
+        Đăng xuất
+    </a>
+</div>
+{% endblock %}
