@@ -34,7 +34,7 @@ jobs:
       - name: Update manifest in GitOps repo
         run: |
           git clone "https://khanhquoc4114:${{ secrets.GITOPS_TOKEN }}@github.com/khanhquoc4114/flask-authen-manifest.git"
-          cd flask-authen-manifest
+          cd flask-authen-manifest/k8s
 
           git checkout main
 
