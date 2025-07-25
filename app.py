@@ -3,7 +3,6 @@ from authlib.integrations.flask_client import OAuth
 import os
 from functools import wraps
 from dotenv import load_dotenv
-from models import db, User
 
 load_dotenv()
 
@@ -14,8 +13,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (
     f"@{os.getenv('POSTGRES_HOST')}/{os.getenv('POSTGRES_DB')}"
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-db.init_app(app)
 
 oauth = OAuth(app)
 
