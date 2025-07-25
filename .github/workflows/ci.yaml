@@ -32,10 +32,8 @@ jobs:
           tags: wuoc4114/flask-authen:${{ github.sha }}
 
       - name: Update manifest in GitOps repo
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git clone "https://khanhquoc4114:${{ GITOPS_TOKEN }}@github.com/khanhquoc4114/flask-authen-manifest.git"
+          git clone "https://khanhquoc4114:${{ secrets.GITOPS_TOKEN }}@github.com/khanhquoc4114/flask-authen-manifest.git"
           cd flask-authen-manifest
 
           git checkout main
