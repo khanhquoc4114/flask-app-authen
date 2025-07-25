@@ -38,7 +38,7 @@ jobs:
 
           git checkout main
 
-          sed -i "s|image: .*|image: wuoc4114/flask-authen:${{ github.sha }}|" deployment.yaml
+          sed -i "s|image: .*|image: wuoc4114/flask-authen:${{ github.sha }}|" manifest.yaml
 
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
