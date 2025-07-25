@@ -29,6 +29,14 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           push: true
-          tags: |
-            wuoc4114/flask-authen:latest
-            wuoc4114/flask-authen:${{ github.sha }}
+          tags: wuoc4114/flask-authen:${{ github.sha }}
+
+      - name: Update manifest in GitOps repo
+        run: |
+          git clone https://khanhquoc4114:${{ secrets.GITOPS_TOKEN }}@github.com/flask-authen-manifest.git
+          cd flask-authen-manifest
+          sed -i "s|image: .*|image: wuoc4114/flask-authen:${{ github.sha }}|" deployment.yaml
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git commit -am "Update image tag to ${{ github.sha }}"
+          git push
