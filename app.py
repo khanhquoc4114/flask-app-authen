@@ -64,10 +64,6 @@ def login():
 
 @app.route('/auth/google')
 def google_auth():
-    # Cách 1: Sử dụng redirect_uri cố định
-    # redirect_uri = 'http://localhost:5000/auth/google/callback'
-    
-    # Cách 2: Sử dụng url_for với _external=True và _scheme='http'
     redirect_uri = url_for('google_callback', _external=True, _scheme='http')
     
     return google.authorize_redirect(redirect_uri)
@@ -75,24 +71,17 @@ def google_auth():
 @app.route('/auth/google/callback')
 def google_callback():
     try:
-        # 1. Exchange authorization code for access token
         token = google.authorize_access_token()
-        
-        # 2. Call Google API to get user info
         resp = google.get('https://www.googleapis.com/oauth2/v2/userinfo')
         user_info = resp.json()
-
         print(f"[DEBUG] User info: {user_info}")
 
-        # 3. Validate required fields
         if not user_info or 'id' not in user_info:
             print("[ERROR] No user info found or missing 'id'")
             return redirect(url_for('login'))
 
-        # 4. Extract user information
         email = user_info.get("email", "")
 
-        # 5. Store session
         session['user'] = {
             'id': user_info['id'],
             'name': user_info.get('name', ''),
@@ -108,9 +97,6 @@ def google_callback():
 
 @app.route('/auth/github')
 def github_auth():
-    # redirect_uri = 'http://localhost:5000/auth/github/callback'
-    
-    # Cách 2: Sử dụng url_for với _external=True và _scheme='http'
     redirect_uri = url_for('github_callback', _external=True, _scheme='http')
     
     return github.authorize_redirect(redirect_uri)
