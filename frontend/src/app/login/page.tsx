@@ -38,7 +38,6 @@ interface LoginFormValues {
 interface LoginResponse {
   access_token: string;
   token_type: string;
-  user?: any;
 }
 
 interface SocialLoginResponse {
