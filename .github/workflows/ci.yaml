@@ -16,15 +16,15 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@v3
         with:
           languages: python
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -41,7 +41,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: wuoc4114/backend:${{ github.sha }}
+          tags: wuoc4114/flask-authen-backend:${{ github.sha }}
 
       - name: Build & Push frontend
         uses: docker/build-push-action@v4
@@ -49,16 +49,19 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
-          tags: wuoc4114/frontend:${{ github.sha }}
+          tags: wuoc4114/flask-authen-frontend:${{ github.sha }}
 
       - name: Update manifest in GitOps repo
         run: |
           git clone "https://khanhquoc4114:${{ secrets.GITOPS_TOKEN }}@github.com/khanhquoc4114/flask-authen-manifest.git"
           cd flask-authen-manifest/k8s
-
           git checkout main
 
-          sed -i "s|image: .*|image: wuoc4114/flask-authen:${{ github.sha }}|" manifest.yaml
+          # Update backend image
+          sed -i "s|image: .*flask-authen-backend:.*|image: wuoc4114/flask-authen-backend:${{ github.sha }}|" backend-deployment.yaml
+
+          # Update frontend image
+          sed -i "s|image: .*flask-authen-frontend:.*|image: wuoc4114/flask-authen-frontend:${{ github.sha }}|" frontend-deployment.yaml
 
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
@@ -68,5 +71,5 @@ jobs:
             exit 0
           fi
 
-          git commit -am "Update image tag to ${{ github.sha }}"
+          git commit -am "Update images to backend:${{ github.sha }} and frontend:${{ github.sha }}"
           git push origin main
