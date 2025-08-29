@@ -1,18 +1,16 @@
-# utils/auth.py
 import os
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlalchemy.future import select
-
-from database import get_db
 from models import User
+from database import *
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key")  # production nên random + env
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -29,10 +27,24 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def verify_token(token: str, db: AsyncSession):
-    """Decode JWT token, return User object or raise exception"""
-    from fastapi import HTTPException, status
+def get_user_by_email(db: Session, email: str):
+    result = db.execute(select(User).where(User.email == email))
+    return result.scalar_one_or_none()
 
+def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
+    result = db.execute(select(User).where(User.id == user_id))
+    return result.scalars().first()
+
+def create_user(db: Session, email: str, password: str, full_name: Optional[str] = None) -> User:
+    hashed_pw = hash_password(password)
+    user = User(email=email, hashed_password=hashed_pw, full_name=full_name)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+def verify_token(token: str, db: Session):
+    from fastapi import HTTPException, status
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -47,31 +59,21 @@ def verify_token(token: str, db: AsyncSession):
     except JWTError:
         raise credentials_exception
 
-    user = get_user_by_id(db, user_id)
+    user = get_user_by_id(db, int(user_id))
     if user is None:
         raise credentials_exception
     return user
 
-def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
-    result = db.execute(select(User).where(User.email == email))
-    return result.scalars().first()
-
-def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
-    result = db.execute(select(User).where(User.id == user_id))
-    return result.scalars().first()
-
-def create_user(db: AsyncSession, email: str, password: str, full_name: Optional[str] = None) -> User:
-    hashed_pw = hash_password(password)
-    user = User(email=email, hashed_password=hashed_pw, full_name=full_name)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
-
-from fastapi import Depends, Request, HTTPException, status
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")  # token endpoint
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> User:
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     return verify_token(token, db)
+
+def authenticate_user(db: Session, email: str, password: str):
+    user = get_user_by_email(db, email)
+    if not user or not verify_password(password, user.hashed_password):
+        return None
+    return user

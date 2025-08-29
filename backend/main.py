@@ -11,7 +11,11 @@ from schemas import *
 from routes import auth_routes
 from database import engine, Base
 import time
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
+from database import get_db
+from models import User
+from datetime import datetime
+from auth import *
 
 load_dotenv()
 oauth = OAuth()
@@ -25,7 +29,7 @@ app.include_router(auth_routes.router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -54,24 +58,23 @@ oauth.register(
     access_token_url='https://oauth2.googleapis.com/token',
     userinfo_url='https://www.googleapis.com/oauth2/v2/userinfo',
     client_kwargs={'scope': 'openid email profile'},
-    redirect_uri='http://localhost:8000/auth/google/callback',
     jwks_uri = "https://www.googleapis.com/oauth2/v3/certs"
 )
 
 # Utility functions
-def get_current_user(request: Request) -> Optional[Dict[str, Any]]:
+def get_current_session_user(request: Request) -> Optional[Dict[str, Any]]:
     """Get current user from session"""
     return request.session.get('user')
 
 def login_required(request: Request):
     """Dependency to require login"""
-    user = get_current_user(request)
+    user = get_current_session_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     return user
 
 @app.get("/", response_model=dict)
-async def root():
+def root():
     """API root endpoint"""
     return {
         "service": "OAuth Microservice API",
@@ -97,7 +100,7 @@ def health():
 @app.get("/api/auth/check", response_model=dict)
 async def check_auth_status(request: Request):
     """Check if user is authenticated"""
-    user = get_current_user(request)
+    user = get_current_session_user(request)
     return {
         "authenticated": user is not None,
         "user": user if user else None
@@ -110,8 +113,7 @@ async def google_auth(request: Request):
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @app.get("/auth/google/callback")
-async def google_callback(request: Request):
-    """Google OAuth callback"""
+async def google_callback(request: Request, db: Session = Depends(get_db)):
     try:
         token = await oauth.google.authorize_access_token(request)
         
@@ -123,22 +125,30 @@ async def google_callback(request: Request):
             user_info = resp.json()
 
         if not user_info or 'id' not in user_info:
-            # Redirect to frontend with error
             frontend_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/auth/error?message=google_auth_failed"
             return RedirectResponse(url=frontend_url, status_code=302)
 
-        # Store user in session
-        user_data = {
-            'id': user_info['id'],
-            'name': user_info.get('name', ''),
-            'email': user_info.get('email', ''),
-            'picture': user_info.get('picture', ''),
-            'provider': 'google'
-        }
-        request.session['user'] = user_data
+        # 1. Kiểm tra user tồn tại trong DB
+        db_user = db.query(User).filter(User.email == user_info["email"]).first()
+        if not db_user:
+            # 2. Nếu chưa có, tạo user mới
+            db_user = User(
+                email=user_info["email"],
+                full_name=user_info.get("name", ""),
+                hashed_password="",  # OAuth user không cần mật khẩu
+                is_active=True,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
 
-        # Redirect to frontend with success
-        frontend_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/auth/success"
+        # 3. Tạo JWT access token
+        access_token = create_access_token({"sub": str(db_user.id), "email": db_user.email})
+
+        # 4. Redirect về frontend kèm token
+        frontend_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/login?token={access_token}"
         return RedirectResponse(url=frontend_url, status_code=302)
 
     except Exception as e:
@@ -153,51 +163,63 @@ async def github_auth(request: Request):
     return await oauth.github.authorize_redirect(request, redirect_uri)
 
 @app.get("/auth/github/callback")
-async def github_callback(request: Request):
+async def github_callback(request: Request, db: Session = Depends(get_db)):
     """GitHub OAuth callback"""
     try:
+        # Exchange code for access_token
         token = await oauth.github.authorize_access_token(request)
-        
+
         async with httpx.AsyncClient() as client:
+            # Get user profile
             resp = await client.get(
                 'https://api.github.com/user',
                 headers={'Authorization': f'Bearer {token["access_token"]}'}
             )
             user_info = resp.json()
-            
+
+            # Get primary email (GitHub có thể không trả email trong user_info)
             email = None
             email_resp = await client.get(
                 'https://api.github.com/user/emails',
                 headers={'Authorization': f'Bearer {token["access_token"]}'}
             )
-            
             if email_resp.status_code == 200:
                 emails = email_resp.json()
                 for email_obj in emails:
-                    if email_obj.get('primary'):
+                    if email_obj.get('primary') and email_obj.get('verified'):
                         email = email_obj.get('email')
                         break
-        
+
         if user_info and 'id' in user_info:
-            user_data = {
-                'id': str(user_info['id']),
-                'name': user_info.get('name') or user_info.get('login', ''),
-                'email': email or '',
-                'picture': user_info.get('avatar_url', ''),
-                'provider': 'github',
-                'username': user_info.get('login', '')
-            }
-            request.session['user'] = user_data
-            
-            # Redirect to frontend with success
-            frontend_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/auth/success"
+            # Tìm user trong DB
+            user = db.query(User).filter(User.email == email).first()
+
+            if not user:
+                user = User(
+                    email=email,
+                    full_name=user_info.get("name") or user_info.get("login", ""),
+                    username=user_info.get("login", ""),
+                    avatar=user_info.get("avatar_url", ""),
+                    provider="github",
+                    hashed_password=""  # GitHub login không dùng password
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+
+            # Tạo JWT token
+            access_token = create_access_token({"sub": str(user.id)})
+
+            # Redirect về frontend
+            frontend_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/login#token={access_token}"
             return RedirectResponse(url=frontend_url, status_code=302)
+
         else:
             frontend_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/auth/error?message=github_auth_failed"
             return RedirectResponse(url=frontend_url, status_code=302)
-            
+
     except Exception as e:
-        print(f"Error in GitHub callback: {e}")
+        print(f"[ERROR] GitHub callback: {e}")
         import traceback
         traceback.print_exc()
         frontend_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/auth/error?message=github_callback_error"
@@ -208,32 +230,6 @@ async def api_logout(request: Request):
     """API logout endpoint"""
     request.session.pop('user', None)
     return {"success": True, "message": "Logged out successfully"}
-
-@app.get("/api/auth/user", response_model=UserResponse)
-async def api_get_user(request: Request, user: dict = Depends(login_required)):
-    """API endpoint to get current user info"""
-    return UserResponse(**user)
-
-@app.get("/api/auth/providers", response_model=dict)
-async def get_auth_providers():
-    """Get available authentication providers"""
-    base_url = os.getenv('API_BASE_URL', 'http://localhost:8000')
-    return {
-        "providers": [
-            {
-                "name": "google",
-                "display_name": "Google",
-                "auth_url": f"{base_url}/auth/google",
-                "icon": "google"
-            },
-            {
-                "name": "github", 
-                "display_name": "GitHub",
-                "auth_url": f"{base_url}/auth/github",
-                "icon": "github"
-            }
-        ]
-    }
 
 @app.exception_handler(401)
 async def unauthorized_handler(request: Request, exc: HTTPException):

@@ -63,8 +63,12 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
-      - REACT_APP_API_URL=http://localhost:8000
-    command: ["npm", "run", "dev"]
+      - REACT_APP_API_URL=http://backend:8000  # Internal calls
+      - NEXT_PUBLIC_API_URL=https://yourdomain.com  # OAuth calls
+      - NEXT_PUBLIC_OAUTH_URL=https://yourdomain.com  # OAuth calls 
+      - NEXT_TELEMETRY_DISABLED=1
+      - CHOKIDAR_INTERVAL=1000
+      - NODE_ENV=development
     stdin_open: true
     tty: true
     depends_on:
