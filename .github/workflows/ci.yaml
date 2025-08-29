@@ -35,11 +35,21 @@ jobs:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build & Push backend
         uses: docker/build-push-action@v4
         with:
+          context: ./backend
+          file: ./backend/Dockerfile
           push: true
-          tags: wuoc4114/flask-authen:${{ github.sha }}
+          tags: wuoc4114/backend:${{ github.sha }}
+
+      - name: Build & Push frontend
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: wuoc4114/frontend:${{ github.sha }}
 
       - name: Update manifest in GitOps repo
         run: |
