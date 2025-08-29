@@ -1,18 +1,15 @@
 # Step 1: build
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 WORKDIR /app
 
 COPY package*.json ./
-
-# Install cả dependencies + devDependencies
 RUN npm install
 
 COPY . .
-
 RUN npm run build
 
-# Step 2: runtime (chỉ copy dist + dependencies thôi)
-FROM node:20-alpine
+# Step 2: runtime
+FROM node:20-slim
 WORKDIR /app
 
 COPY package*.json ./
