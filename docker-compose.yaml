@@ -32,7 +32,7 @@ services:
       POSTGRES_DB: db
       POSTGRES_USER: db
       POSTGRES_PASSWORD: db
-      POSTGRES_HOST: db
+      POSTGRES_HOST: postgres-service
       POSTGRES_PORT: 5432
       FRONTEND_URL: http://localhost:3000
     depends_on:
