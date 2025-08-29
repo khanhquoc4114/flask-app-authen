@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build:
+  codeql:
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -22,6 +22,13 @@ jobs:
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
+
+  build-backend:
+    runs-on: ubuntu-latest
+    needs: codeql
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -43,6 +50,25 @@ jobs:
           push: true
           tags: wuoc4114/flask-authen-backend:${{ github.sha }}
 
+  build-frontend:
+    runs-on: ubuntu-latest
+    needs: codeql
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Build & Push frontend
         uses: docker/build-push-action@v4
         with:
@@ -51,7 +77,11 @@ jobs:
           push: true
           tags: wuoc4114/flask-authen-frontend:${{ github.sha }}
 
-      - name: Update manifest in GitOps repo
+  update-manifest:
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    steps:
+      - name: Checkout GitOps repo
         run: |
           git clone "https://khanhquoc4114:${{ secrets.GITOPS_TOKEN }}@github.com/khanhquoc4114/flask-authen-manifest.git"
           cd flask-authen-manifest/k8s
