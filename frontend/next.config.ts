@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    optimizeCss: false,
-  },
+  reactStrictMode: true,
+  swcMinify: true,
+  optimizeCss: false,
 };
 
 export default nextConfig;
