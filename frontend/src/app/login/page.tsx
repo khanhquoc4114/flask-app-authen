@@ -63,7 +63,7 @@ const getAPIUrl = () => {
     return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   }
   // Server context - có thể dùng internal network
-  return process.env.REACT_APP_API_URL || 'http://backend:8000';
+  return process.env.NEXT_PUBLIC_API_URL || 'http://backend:8000';
 };
 
   useEffect(() => {
@@ -86,7 +86,7 @@ const onFinish = async (values: LoginFormValues) => {
   
   try {
     const response = await axios.post<LoginResponse>(
-      `${process.env.REACT_APP_API_URL}/api/auth/login`, // Vẫn dùng backend:8000
+      `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, // Vẫn dùng backend:8000
       {
         email: values.email,
         password: values.password,

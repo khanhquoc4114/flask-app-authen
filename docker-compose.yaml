@@ -63,7 +63,7 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
-      - REACT_APP_API_URL=http://backend:8000
+      - NEXT_PUBLIC_API_URL=http://backend:8000
       - NEXT_PUBLIC_API_URL=http://<LB_IP>:8000
       - NEXT_PUBLIC_OAUTH_URL=http://<LB_IP>:8000
       - NEXT_TELEMETRY_DISABLED=1
