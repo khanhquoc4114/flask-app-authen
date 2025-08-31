@@ -103,6 +103,7 @@ export default function RegisterForm() {
   };
 
   const handleSubmit = async () => {
+    console.log("API URL:", process.env.NEXT_PUBLIC_API_URL);
     if (!validateForm()) return;
 
     if (!acceptTerms) {
