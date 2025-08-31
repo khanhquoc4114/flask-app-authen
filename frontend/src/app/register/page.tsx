@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Eye, EyeOff, User, Lock, Mail, UserPlus, Phone, Check } from "lucide-react";
 import axios, {AxiosError} from 'axios';
 import { useRouter } from "next/navigation";
+import getConfig from 'next/config'
 
 interface RegisterFormValues {
   fullName: string;
@@ -29,6 +30,8 @@ export default function RegisterForm() {
   const [errors, setErrors] = useState<Partial<RegisterFormValues>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const { publicRuntimeConfig } = getConfig()
+
 
   const handleInputChange = (field: keyof RegisterFormValues, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -103,7 +106,9 @@ export default function RegisterForm() {
   };
 
   const handleSubmit = async () => {
-    console.log("API URL:", process.env.NEXT_PUBLIC_API_URL);
+    const apiUrl = publicRuntimeConfig?.API_URL || 'http://backend-service:8000';
+    console.log("API URL:", apiUrl);
+    
     if (!validateForm()) return;
 
     if (!acceptTerms) {
@@ -114,7 +119,7 @@ export default function RegisterForm() {
     setIsLoading(true);
 
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`, {
+      const response = await axios.post(`${apiUrl}/api/auth/register`, {
         email: formData.email,
         password: formData.password,
         full_name: formData.fullName,
@@ -135,11 +140,9 @@ export default function RegisterForm() {
       router.push("/login");
 
     } catch (err) {
-      // Dùng AxiosError type
       const error = err as AxiosError<{ detail: string }>;
 
       if (error.response) {
-        // Lỗi từ backend
         alert(error.response.data?.detail || "Đăng ký thất bại!");
       } else {
         alert("Lỗi kết nối server!");
