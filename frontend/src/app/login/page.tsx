@@ -86,7 +86,7 @@ const onFinish = async (values: LoginFormValues) => {
   
   try {
     const response = await axios.post<LoginResponse>(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, // Vẫn dùng backend:8000
+      `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
       {
         email: values.email,
         password: values.password,
